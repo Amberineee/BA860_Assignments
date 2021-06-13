@@ -1,0 +1,187 @@
+---
+title: "ba860_a1"
+author: "Ying Wu (U30529371)"
+date: "09/06/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Read data
+```{r}
+library(data.table)
+df <- fread('PS1-4003988.csv')
+```
+1.a.i
+```{r}
+#encode gender
+df[, gendercode := ifelse(gender == 'female', 1, 0)]
+#randomizarion check on gender
+gender_check <- lm(gendercode ~ Treatment, data = df)
+summary(gender_check)
+```
+```{r}
+standard_error <- function(x) sd(x) / sqrt(length(x))
+treatment <- df[Treatment == 1, ]
+control <- df[Treatment == 0, ]
+
+#95%CI
+lower <- (mean(treatment$gendercode) - mean(control$gendercode)) - 1.96* sqrt((standard_error(treatment$gendercode))^2 + (standard_error(control$gendercode))^2)
+upper <- (mean(treatment$gendercode) - mean(control$gendercode)) + 1.96* sqrt((standard_error(treatment$gendercode))^2 + (standard_error(control$gendercode))^2)
+
+print(lower)
+print(upper)
+```
+
+1.a.ii
+
+The regression summary shows that after we encoded the gender variable, the absolute difference between the treatment and contol group is small. The p-value is large enough (0.484>0.050) to prove that the difference of gender between the treatment and control is not statistically significant and passes the randomization check. 
+
+1.b.i
+```{r}
+#randomization check on past sales
+pastsale_check <- lm(past_sales ~ Treatment, data = df)
+summary(pastsale_check)
+```
+```{r}
+#95%CI
+lower1 <- (mean(treatment$past_sales) - mean(control$past_sales)) - 1.96* sqrt((standard_error(treatment$past_sales))^2 + (standard_error(control$past_sales))^2)
+upper1 <- (mean(treatment$past_sales) - mean(control$past_sales)) + 1.96* sqrt((standard_error(treatment$past_sales))^2 + (standard_error(control$past_sales))^2)
+
+print(lower1)
+print(upper1)
+```
+
+1.b.ii
+
+The regression summary shows that the absolute difference of past sales between the treatment and contol group is very small. The p-value is large enough (0.762>0.050) to prove that the difference of past sales between the treatment and control is not statistically significant and passes the randomization check. 
+
+2.
+```{r}
+x <- treatment$sales
+xs <- standard_error(x)
+x1 <- control$sales
+x1s <- standard_error(x1)
+
+#average Intention-to-Treat estimate: 95% CI
+lower_itt <- (mean(treatment$sales) - mean(control$sales)) - 1.96* sqrt(xs^2 + x1s^2)
+upper_itt <- (mean(treatment$sales) + mean(control$sales)) + 1.96* sqrt(xs^2 + x1s^2)
+print(lower_itt)
+print(upper_itt)
+```
+Since the 95% confidence interval does not include 0, meaning that the experiment effect is significantly different from 0 at the 0.05 level. The intent-to-treat estimate is between 0.037 and 2.946. 
+
+```{r}
+temp <- lm(sales ~ Treatment, data=df)
+summary(temp)
+```
+
+3.a
+```{r}
+treatment_ep <- treatment[saw_ads == 1,]
+control_ep <- control[saw_ads == 1,]
+
+#95%CI
+lower_ep <- (mean(treatment_ep$gendercode) - mean(control_ep$gendercode)) - 1.96* sqrt((standard_error(treatment_ep$gendercode))^2 + (standard_error(control_ep$gendercode))^2)
+upper_ep <- (mean(treatment_ep$gendercode) - mean(control_ep$gendercode)) + 1.96* sqrt((standard_error(treatment_ep$gendercode))^2 + (standard_error(control_ep$gendercode))^2)
+
+print(lower_ep)
+print(upper_ep)
+```
+
+3.b
+```{r}
+#95%CI
+lower_ep1 <- (mean(treatment_ep$past_sales) - mean(control_ep$past_sales)) - 1.96* sqrt((standard_error(treatment_ep$past_sales))^2 + (standard_error(control_ep$past_sales))^2)
+upper_ep1 <- (mean(treatment_ep$past_sales) - mean(control_ep$past_sales)) + 1.96* sqrt((standard_error(treatment_ep$past_sales))^2 + (standard_error(control_ep$past_sales))^2)
+
+print(lower_ep1)
+print(upper_ep1)
+```
+
+4.
+```{r}
+#average TOT estimate: 95%CI
+lower_tot <- (mean(treatment_ep$sales) - mean(control_ep$sales)) - 1.96* sqrt((standard_error(treatment_ep$sales))^2 + (standard_error(control_ep$sales))^2)
+
+upper_tot <- (mean(treatment_ep$sales) + mean(control_ep$sales)) + 1.96*
+sqrt((standard_error(treatment_ep$sales))^2 + (standard_error(control_ep$sales))^2)
+
+print(lower_tot)
+print(upper_tot)
+```
+less noisy, ITT estimate is noisier than TOT estimate. With valid control ads, we get the more precise estimate (TOT)
+
+5.a
+```{r}
+#ITT
+itt_lower <- lower_itt*control[,.N]
+
+itt_upper <- upper_itt*control[,.N]
+```
+
+6.
+```{r}
+treatment_n <- treatment[saw_ads == 0,]
+
+lower_ob <- (mean(treatment_ep$sales) - mean(treatment_n$sales)) - 1.96* sqrt((standard_error(treatment_ep$sales))^2 + (standard_error(treatment_n$sales))^2)
+
+upper_ob <- (mean(treatment_ep$sales) + mean(treatment_n$sales)) + 1.96*
+sqrt((standard_error(treatment_ep$sales))^2 + (standard_error(treatment_n$sales))^2)
+
+print(lower_ob)
+print(upper_ob)
+```
+The people who saw the ads and those who didn't see the ads could be quite different from each other. Since the 95% confidence interval contains 0, it means that the ad effect is not statistically different. 
+
+7.
+```{r}
+ep <- df[saw_ads == 1,]
+f <- ep[gendercode == 1,]
+m <- ep[gendercode == 0,]
+```
+
+
+```{r}
+library(fixest)
+n <- feols(sales ~ Treatment, data=f, se='white')
+b <- feols(sales ~ Treatment, data=m, se='white')
+total <- feols(sales ~ Treatment*gendercode, data=ep, se='white')
+etable(n,b,total)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
