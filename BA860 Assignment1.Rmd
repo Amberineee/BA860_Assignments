@@ -1,0 +1,404 @@
+---
+title: "Digital Marketing Analytics Assignment 1"
+author: "Yixuan Wang"
+date: "6/9/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Online Campaign Evaluation
+```{r include=FALSE}
+# Load library
+library(data.table)
+library(ggplot2)
+library(tidyverse)
+library(pwr)
+library(lfe)
+library(scales)
+```
+
+## 1. Before analyzing the experiment’s results, we want to verify that the experiment properly randomized users. Otherwise, we will not be confident in our results. To do this, we compare the treatment and control groups by the users’ baseline characteristics.
+
+### a. Verify the randomization by user gender
+
+i. (10 pts) Use the experimental differences estimator to compare the proportion of women in the Treatment versus Control groups. (Hint: convert the data to numeric using 1=female & 0=male to compute the difference).
+```{r echo=TRUE}
+# Read the data
+PS1 <- fread('/Users/wangyixuan/Downloads/PS1-4003988.csv')
+PS1$gender_num <- ifelse(PS1$gender=="female", 1, 0)
+
+t.test(PS1[Treatment == 1, gender_num], 
+       PS1[Treatment == 0, gender_num])
+
+# mean difference
+gender_mean_diff <- mean(PS1[Treatment == 1, gender_num]) - 
+                    mean(PS1[Treatment == 0, gender_num])
+gender_mean_diff_abs <- abs(gender_mean_diff)
+cat("Absolute difference in female proportion:", round(gender_mean_diff_abs,3),"\n")
+
+# relative difference 
+gender_relative_diff <- abs((mean(PS1[Treatment == 1, gender_num]) - 
+                          mean(PS1[Treatment == 0, gender_num])))/
+                        mean(PS1[Treatment == 0, gender_num])
+cat("Relative difference in female proportion:", 
+    percent(gender_relative_diff, accuracy = 0.001),"\n")
+
+# SE
+gender_se1 <- sd(PS1[Treatment == 1, gender_num])/sqrt(nrow(PS1[Treatment == 1]))
+gender_se2 <- sd(PS1[Treatment == 0, gender_num])/sqrt(nrow(PS1[Treatment == 0]))
+gender_se_diff <- sqrt((gender_se1)^2 + (gender_se2)^2)
+cat("Standard error of difference in female proportion:", round(gender_se_diff, 3),"\n")
+
+# 95% CI
+cat("95% CI of difference in female proportion:[",
+    round(gender_mean_diff - 1.96 * gender_se_diff, 3), "," ,
+    round(gender_mean_diff + 1.96 * gender_se_diff, 3),"]")
+```
+
+ii. (5 pts) What do you conclude about the validity of the experimental randomization in terms of gender?
+
+After perform the randomization check on our dataset for the proportion of women, the p-values are all higher than 5% and the differences between treatment and control are small, so most differences are insignificant and we have proper randomization. Also, 95% Confidence interval includes 0, so it means the difference of female proportion between treatment and control group is not statistically significant, and pass the randomization check.
+
+
+### b. Verify the randomization by past sales
+
+i. (10 pts) Use the experimental differences estimator to compare the average sales in the 2 weeks before the experiment in the Treatment versus Control groups.
+```{r}
+t.test(PS1[Treatment == 1, past_sales], 
+       PS1[Treatment == 0, past_sales])
+
+# past sales mean difference
+past_mean_diff <- mean(PS1[Treatment == 1, past_sales]) - 
+                  mean(PS1[Treatment == 0, past_sales])
+past_mean_diff_abs <- abs(past_mean_diff)
+cat("Absolute difference in past sales:", round(past_mean_diff_abs,3),"\n")
+
+# relative difference 
+past_relative_diff <- abs((mean(PS1[Treatment == 1, past_sales]) -
+                         mean(PS1[Treatment == 0, past_sales])))/
+                      mean(PS1[Treatment == 0, past_sales])
+cat("Relative difference in past sales:", 
+    percent(past_relative_diff, accuracy = 0.001),"\n")
+
+# SE
+past_se1 <- sd(PS1[Treatment == 1, past_sales])/sqrt(nrow(PS1[Treatment == 1]))
+past_se2 <- sd(PS1[Treatment == 0, past_sales])/sqrt(nrow(PS1[Treatment == 0]))
+past_se_diff <- sqrt((past_se1)^2 + (past_se2)^2)
+cat("Standard error of difference in past sales:", round(past_se_diff, 3),"\n")
+
+# 95% CI
+cat("95% CI of difference in past sales:[",
+    round(past_mean_diff - 1.96 * past_se_diff, 3), "," ,
+    round(past_mean_diff + 1.96 * past_se_diff, 3),"]")
+```
+
+ii. (5 pts) What do you conclude about the validity of the experimental randomization in terms of past sales? 
+
+After perform the randomization check on our dataset for past sales variable, the p-values are all higher than 5% and the differences between treatment and control are small, so most differences are insignificant and we have proper randomization. Also, 95% Confidence interval includes 0, so it means the difference of past sales between treatment and control group is not statistically significant, and pass the randomization check.
+
+## 2. (10 pts) What would be your estimate for the effect of the campaign using an experiment that did not have control ads? Compute the experimental estimate for all users in the experiment: the (average) Intention-to-Treat estimate.
+```{r}
+t.test(PS1[Treatment == 1, sales], 
+       PS1[Treatment == 0, sales])
+
+# sales mean difference
+sales_mean_diff <- mean(PS1[Treatment == 1, sales]) - 
+                  mean(PS1[Treatment == 0, sales])
+ITT <- abs(sales_mean_diff)
+cat("(average) Intention-to-Treat estimate:", round(ITT,3),"\n")
+
+# relative difference 
+ITT_relative <- abs((mean(PS1[Treatment == 1, sales]) - 
+                          mean(PS1[Treatment == 0, sales])))/
+                        mean(PS1[Treatment == 0, sales])
+cat("Relative difference:", 
+    percent(ITT_relative, accuracy = 0.001),"\n")
+
+# SE
+sales_se1 <- sd(PS1[Treatment == 1, sales])/sqrt(nrow(PS1[Treatment == 1]))
+sales_se2 <- sd(PS1[Treatment == 0, sales])/sqrt(nrow(PS1[Treatment == 0]))
+ITT_se <- sqrt((sales_se1)^2 + (sales_se2)^2)
+cat("Standard error:", round(ITT_se, 3),"\n")
+
+# 95% CI
+ITT_CI_low <- round(sales_mean_diff - 1.96 * ITT_se, 3)
+ITT_CI_high <- round(sales_mean_diff + 1.96 * ITT_se, 3)
+cat("95% CI:[",
+    ITT_CI_low, "," ,
+    ITT_CI_high,"]")
+```
+Our point estimate for the ITT effect is 0.019, the relative difference is 1.339%, and the standard error is 0.009. Since our 95% confidence interval does not include 0, this implies that the ITT effect is statistically significant from 0 at the 0.05 level. We are 95% confident that our estimate of the ITT effect lies between 0.002 and 0.037.
+
+
+## 3. This experiment used control ads. Verify that the control ads were deployed the same as the retailer ads by comparing the Treatment and Control groups among the subset of exposed users.
+
+### a. (15 pts) Verify the equivalence of Treatment exposed and Control exposed users by gender (repeat both steps in question 1A).
+```{r}
+t.test(PS1[Treatment == 1 & saw_ads==1, gender_num], 
+       PS1[Treatment == 0 & saw_ads==1, gender_num])
+
+# mean difference
+gender_mean_diff <- mean(PS1[Treatment == 1 & saw_ads==1, gender_num]) - 
+                    mean(PS1[Treatment == 0 & saw_ads==1, gender_num])
+gender_mean_diff_abs <- abs(gender_mean_diff)
+cat("Absolute difference in female proportion:", round(gender_mean_diff_abs,3),"\n")
+
+# relative difference 
+gender_relative_diff <- abs((mean(PS1[Treatment == 1 & saw_ads==1, gender_num]) - 
+                          mean(PS1[Treatment == 0 & saw_ads==1, gender_num])))/
+                        mean(PS1[Treatment == 0 & saw_ads==1, gender_num])
+cat("Relative difference in female proportion:", 
+    percent(gender_relative_diff, accuracy = 0.001),"\n")
+
+# SE
+gender_se1 <- sd(PS1[Treatment == 1 & saw_ads==1, gender_num])/
+              sqrt(nrow(PS1[Treatment == 1 & saw_ads==1]))
+gender_se2 <- sd(PS1[Treatment == 0 & saw_ads==1, gender_num])/
+              sqrt(nrow(PS1[Treatment == 0 & saw_ads==1]))
+gender_se_diff <- sqrt((gender_se1)^2 + (gender_se2)^2)
+cat("Standard error difference in female proportion:", round(gender_se_diff, 3),"\n")
+
+# 95% CI
+cat("95% CI difference in female proportion:[",
+    round(gender_mean_diff - 1.96 * gender_se_diff, 3), "," ,
+    round(gender_mean_diff + 1.96 * gender_se_diff, 3),"]")
+```
+
+After repeating the steps in 1A for gender, the p-values are all higher than 5% and the differences between treatment and control are small, so most differences are insignificant and we have proper randomization. Also, 95% Confidence interval includes 0, so it means the difference of gender between treatment and control group is not statistically significant, and pass the randomization check.
+
+
+### b. (15 pts) Verify the equivalence of Treatment exposed and Control exposed users by past sales (repeat both steps in question 1B). 
+```{r}
+t.test(PS1[Treatment == 1 & saw_ads==1, past_sales], 
+       PS1[Treatment == 0 & saw_ads==1, past_sales])
+
+# past sales mean difference
+past_mean_diff <- mean(PS1[Treatment == 1 & saw_ads==1, past_sales]) - 
+                  mean(PS1[Treatment == 0 & saw_ads==1, past_sales])
+past_mean_diff_abs <- abs(past_mean_diff)
+cat("Absolute difference in past sales:", round(past_mean_diff_abs,3),"\n")
+
+# relative difference 
+past_relative_diff <- abs((mean(PS1[Treatment == 1 & saw_ads==1, past_sales]) -
+                         mean(PS1[Treatment == 0 & saw_ads==1, past_sales])))/
+                      mean(PS1[Treatment == 0 & saw_ads==1, past_sales])
+cat("Relative difference in past sales:", 
+    percent(past_relative_diff, accuracy = 0.001),"\n")
+
+# SE
+past_se1 <- sd(PS1[Treatment == 1 & saw_ads==1, past_sales])/
+            sqrt(nrow(PS1[Treatment == 1 & saw_ads==1]))
+past_se2 <- sd(PS1[Treatment == 0 & saw_ads==1, past_sales])/
+            sqrt(nrow(PS1[Treatment == 0 & saw_ads==1]))
+past_se_diff <- sqrt((past_se1)^2 + (past_se2)^2)
+cat("Standard error difference in past sales:", round(past_se_diff, 3),"\n")
+
+# 95% CI
+cat("95% CI difference in past sales:[",
+    round(past_mean_diff - 1.96 * past_se_diff, 3), "," ,
+    round(past_mean_diff + 1.96 * past_se_diff, 3),"]")
+```
+
+After repeating the steps in 1B for past sales, the p-values are all higher than 5% and the differences between treatment and control are small, so most differences are insignificant and we have proper randomization. Also, 95% Confidence interval includes 0, so it means the difference of past sales between treatment and control group is not statistically significant, and pass the randomization check.
+
+## 4. How does your ad effectiveness estimate change when you make use of the control ads? Compute the experimental estimate for those users who saw ads: the (average) Treatment on Treated (TOT) estimate. 
+```{r}
+t.test(PS1[Treatment == 1 & saw_ads==1, sales], 
+       PS1[Treatment == 0 & saw_ads==1, sales])
+
+# sales mean difference
+sales_mean_diff <- mean(PS1[Treatment == 1 & saw_ads==1, sales]) - 
+                  mean(PS1[Treatment == 0 & saw_ads==1, sales])
+TOT <- abs(sales_mean_diff)
+cat("(average) Treatment on Treated (TOT) estimate:", round(TOT,3),"\n")
+
+# relative difference 
+TOT_relative <- abs((mean(PS1[Treatment == 1 & saw_ads==1, sales]) - 
+                          mean(PS1[Treatment == 0 & saw_ads==1, sales])))/
+                        mean(PS1[Treatment == 0 & saw_ads==1, sales])
+cat("Relative difference:", 
+    percent(TOT_relative, accuracy = 0.001),"\n")
+
+# SE
+sales_se1 <- sd(PS1[Treatment == 1 & saw_ads==1, sales])/
+              sqrt(nrow(PS1[Treatment == 1 & saw_ads==1]))
+sales_se2 <- sd(PS1[Treatment == 0 & saw_ads==1, sales])/
+              sqrt(nrow(PS1[Treatment == 0 & saw_ads==1]))
+TOT_se <- sqrt((sales_se1)^2 + (sales_se2)^2)
+cat("Standard error:", round(TOT_se, 3),"\n")
+
+# 95% CI
+TOT_CI_low <- round(sales_mean_diff - 1.96 * TOT_se, 3)
+TOT_CI_high <- round(sales_mean_diff + 1.96 * TOT_se, 3)
+cat("95% CI:[",
+    TOT_CI_low, "," ,
+    TOT_CI_high,"]")
+```
+
+Our point estimate for the TOT effect is 0.043, the relative difference is 3.613%, and the standard error is 0.01. Since our 95% confidence interval does not include 0, this implies that the TOT effect is statistically significant from 0 at the 0.05 level. We are 95% confident that our estimate of the TOT effect lies between 0.024 and 0.063.
+And TOT is less noisy, ITT estimate is noisier than TOT estimate. With valid control ads, we get the more precise estimate (TOT).
+
+## 5.  What is the total effect of the campaign on sales?
+
+### a. Compute the total effect using the ITT estimate.
+```{r}
+# sales mean difference
+total_ITT <- ITT * (nrow(PS1))
+cat("total effect:", round(total_ITT,3),"\n")
+
+# relative difference 
+total_ITT_relative <- total_ITT/ (mean(PS1[Treatment == 0, sales]) * (nrow(PS1)))
+cat("Relative difference:", 
+    percent(total_ITT_relative, accuracy = 0.001),"\n")
+
+# SE
+total_ITT_se <- ITT_se * (nrow(PS1))
+cat("Standard error:", round(total_ITT_se, 3),"\n")
+
+# 95% CI
+total_ITT_CI_low <- ITT_CI_low * (nrow(PS1))
+total_ITT_CI_high <- ITT_CI_high * (nrow(PS1))
+cat("95% CI:[",
+    total_ITT_CI_low, "," ,
+    total_ITT_CI_high,"]")
+```
+
+Our point estimate for the total effect using ITT estimate is 78012.68, the relative difference is 1.339%, and the standard error is 36115.51. Since our 95% confidence interval does not include 0, this implies that the ITT effect is statistically significant from 0 at the 0.05 level. We are 95% confident that our estimate of the ITT effect lies between 8007.976 and 148147.6.
+
+### b. Compute the total effect using the TOT estimate.
+```{r}
+# sales mean difference
+total_TOT <- TOT * (nrow(PS1[saw_ads==1]))
+cat("total effect:", round(total_TOT,3),"\n")
+
+# relative difference 
+total_TOT_relative <- total_TOT/ (mean(PS1[Treatment == 0 & saw_ads==1, sales]) * 
+                                    (nrow(PS1[saw_ads==1])))
+cat("Relative difference:", 
+    percent(total_TOT_relative, accuracy = 0.001),"\n")
+
+# SE
+total_TOT_se <- TOT_se * (nrow(PS1[saw_ads==1]))
+cat("Standard error:", round(total_TOT_se, 3),"\n")
+
+# 95% CI
+total_TOT_CI_low <- TOT_CI_low * (nrow(PS1[saw_ads==1]))
+total_TOT_CI_high <- TOT_CI_high * (nrow(PS1[saw_ads==1]))
+cat("95% CI:[",
+    total_TOT_CI_low, "," ,
+    total_TOT_CI_high,"]")
+```
+
+Our point estimate for the total effect using TOT estimate is 78478.92, the relative difference is 3.613%, and the standard error is 17979.57. Since our 95% confidence interval does not include 0, this implies that the TOT effect is statistically significant from 0 at the 0.05 level. We are 95% confident that our estimate of the TOT effect lies between 43587 and 114415.9.
+
+### c. Based on your analysis in question 3, which of the two estimates should you report from this experiment and why?
+
+
+### d. Using your preferred estimator, summarize your results for a manager. What are the managerial and statistical implications of your results?
+
+
+## 6. What would be your estimate for the effect of the campaign without an experiment? (Hint: you wouldn’t have control-group data in this case)
+### a. Compute the observational estimate.
+```{r}
+t.test(PS1[saw_ads==1, sales], 
+       PS1[saw_ads==0, sales])
+
+sales_mean_diff <- mean(PS1[saw_ads==1, sales]) - 
+                  mean(PS1[saw_ads==0, sales])
+sales_mean_diff_abs <- abs(sales_mean_diff)
+cat("observational estimate:", round(sales_mean_diff_abs,3),"\n")
+
+# relative difference 
+sales_relative_diff <- abs((mean(PS1[saw_ads==1, sales]) - 
+                          mean(PS1[saw_ads==0, sales])))/
+                        mean(PS1[saw_ads==0, sales])
+cat("Relative difference:", 
+    percent(sales_relative_diff, accuracy = 0.001),"\n")
+
+# SE
+sales_se1 <- sd(PS1[saw_ads==1, sales])/
+              sqrt(nrow(PS1[saw_ads==1]))
+sales_se2 <- sd(PS1[saw_ads==0, sales])/
+              sqrt(nrow(PS1[saw_ads==0]))
+sales_se_diff <- sqrt((sales_se1)^2 + (sales_se2)^2)
+cat("Standard error:", round(sales_se_diff, 3),"\n")
+
+# 95% CI
+cat("95% CI:[",
+    round(sales_mean_diff - 1.96 * sales_se_diff, 3), "," ,
+    round(sales_mean_diff + 1.96 * sales_se_diff, 3),"]")
+```
+
+## b. Suppose a manager had not run an experiment and only had the observational estimate. What would they get wrong? 
+
+
+## 7. Consider gender as a segmentation variable.
+### a. Using your preferred estimator from question 5c, what is the average ad effect for women?
+```{r}
+t.test(PS1[Treatment == 1 & saw_ads==1 & gender_num==1, sales], 
+       PS1[Treatment == 0 & saw_ads==1 & gender_num==1, sales])
+
+# sales mean difference
+sales_mean_diff <- mean(PS1[Treatment == 1 & saw_ads==1 & gender_num==1, sales]) - 
+                  mean(PS1[Treatment == 0 & saw_ads==1 & gender_num==1, sales])
+sales_mean_diff_abs <- abs(sales_mean_diff)
+cat("average estimate for women:", round(sales_mean_diff_abs,3),"\n")
+
+# relative difference 
+sales_relative_diff <- (mean(PS1[Treatment == 1 & saw_ads==1 & gender_num==1, sales]) - 
+                          mean(PS1[Treatment == 0 & saw_ads==1 & gender_num==1, sales]))/
+                        mean(PS1[Treatment == 0 & saw_ads==1 & gender_num==1, sales])
+cat("Relative difference:", 
+    percent(sales_relative_diff, accuracy = 0.001),"\n")
+
+# SE
+sales_se1 <- sd(PS1[Treatment == 1 & saw_ads==1 & gender_num==1, sales])/
+              sqrt(nrow(PS1[Treatment == 1 & saw_ads==1 & gender_num==1]))
+sales_se2 <- sd(PS1[Treatment == 0 & saw_ads==1 & gender_num==1, sales])/
+              sqrt(nrow(PS1[Treatment == 0 & saw_ads==1 & gender_num==1]))
+sales_se_diff <- sqrt((sales_se1)^2 + (sales_se2)^2)
+cat("Standard error:", round(sales_se_diff, 3),"\n")
+
+# 95% CI
+cat("95% CI:[",
+    round(sales_mean_diff - 1.96 * sales_se_diff, 3), "," ,
+    round(sales_mean_diff + 1.96 * sales_se_diff, 3),"]")
+```
+
+### b. Using your preferred estimator from question 5c, what is the average ad effect for men?
+```{r}
+t.test(PS1[Treatment == 1 & saw_ads==1 & gender_num==0, sales], 
+       PS1[Treatment == 0 & saw_ads==1 & gender_num==0, sales])
+
+# sales mean difference
+sales_mean_diff <- mean(PS1[Treatment == 1 & saw_ads==1 & gender_num==0, sales]) - 
+                  mean(PS1[Treatment == 0 & saw_ads==1 & gender_num==0, sales])
+sales_mean_diff_abs <- abs(sales_mean_diff)
+cat("average estimate for men:", round(sales_mean_diff_abs,3),"\n")
+
+# relative difference 
+sales_relative_diff <- (mean(PS1[Treatment == 1 & saw_ads==1 & gender_num==0, sales]) - 
+                          mean(PS1[Treatment == 0 & saw_ads==1 & gender_num==0, sales]))/
+                        mean(PS1[Treatment == 0 & saw_ads==1 & gender_num==0, sales])
+cat("Relative difference:", 
+    percent(sales_relative_diff, accuracy = 0.001),"\n")
+
+# SE
+sales_se1 <- sd(PS1[Treatment == 1 & saw_ads==1 & gender_num==0, sales])/
+              sqrt(nrow(PS1[Treatment == 1 & saw_ads==1 & gender_num==0]))
+sales_se2 <- sd(PS1[Treatment == 0 & saw_ads==1 & gender_num==0, sales])/
+              sqrt(nrow(PS1[Treatment == 0 & saw_ads==1 & gender_num==0]))
+sales_se_diff <- sqrt((sales_se1)^2 + (sales_se2)^2)
+cat("Standard error:", round(sales_se_diff, 3),"\n")
+
+# 95% CI
+cat("95% CI:[",
+    round(sales_mean_diff - 1.96 * sales_se_diff, 3), "," ,
+    round(sales_mean_diff + 1.96 * sales_se_diff, 3),"]")
+```
+
+### c. Summarize the managerial and statistical implications of your results for a manager who needs to decide how to allocate the ad budget across gender. How will you recommend allocating the budget? 
