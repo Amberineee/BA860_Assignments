@@ -1,0 +1,268 @@
+---
+title: "Assignment 2"
+author: "Ying Wu, Yixuan Wang, Ruchika Venkateswaran"
+date: "19/06/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+df <- fread('PS1-4003988.csv')
+```
+1. What is the standard deviation of sales (not past_sales) in the treatment group among
+exposed users who saw the campaign in “PS1-4003988.csv” (from Assignment #1)?
+Use this number for your calculations below. (5 points)
+
+```{r}
+sd1 <- sd(df[Treatment == 1 & saw_ads==1, sales])
+sd1
+```
+
+2. Suppose you have the budget to spend $0.01 per person on advertising. As your
+‘reasonable signal’ or benchmark ad lift, you assume that the campaign will break
+even (0 profit).
+
+a. If your profitability margin on sales is 50%, what is the `reasonable signal’ for ad
+lift that you are assuming? (2 points)
+
+```{r}
+#campaign lift * profitability margin - campaign cost = 0
+camp_lift <- (500000*0.01)/0.5
+camp_lift
+
+camp_lift_per_person <- camp_lift/500000
+camp_lift_per_person
+```
+The reasonable signal of ad lift would be 10,000, and the incremental sales effect per person would be 0.02. 
+
+b. For a 95% confidence interval, calculate the statistical power to successfully detect
+the signal for the following three experimental designs (9 points):
+
+i. 20% of users are assigned to the control group
+```{r}
+library(pwr)
+
+power1 <- pwr.t2n.test(d=camp_lift_per_person/sd1, n1=0.2*500000, n2=0.8*500000)
+power1
+```
+The statistical power is 14.71% for 20% of users are assigned to the control group. 
+
+ii. 30% of users are assigned to the control group
+```{r}
+power2 <- pwr.t2n.test(d=camp_lift_per_person/sd1, n1=0.3*500000, n2=0.7*500000)
+power2
+```
+The statistical power is 17.83% for 30% of users are assigned to the control group. 
+
+iii. 80% of users are assigned to the control group
+```{r}
+power3 <- pwr.t2n.test(d=camp_lift_per_person/sd1, n1=0.8*500000, n2=0.2*500000)
+power3
+```
+The statistical power is 14.71% for 80% of users are assigned to the control group.
+
+Which design is best according to this criterion? (1 point)
+
+The design with 30% of the users assigned to the control group is the best because its statistical power is higher than the other 2 designs with 20% and 80% of the users assigned to the control group respectively (the statistical power for the design with 30% of the users assigned to the control group is 3.12% higher than that of the other two designs). That's why the one with 30% of users assigned to the control group is the best according to the statistical power. 
+
+c. Design i – iii may not be the ‘optimal’ design. What treatment assignment (%
+assigned to the control group) maximizes statistical power? (5 points)
+
+```{r}
+power4 <- pwr.t2n.test(d=camp_lift_per_person/sd1, n1=0.5*500000, n2=0.5*500000)
+power4
+```
+The optimal design that we recommend is allocating a 50-50 split between the assignment of people. This is because when the treatment & control have equal variances, a 50-50 split gives you the maximum power for a given sample size. The statistical power is around 20.34%.
+
+3. Now suppose instead that you have a fixed ad budget of $2,000 to spend on your own
+ads. You ignore the cost of control ads because your partner publisher is providing
+them for free.
+
+a. Calculate the average ad spend per person for the three experimental designs
+above. Report your answer to 4 decimals. (6 points)
+```{r}
+e1 <- round((2000/(0.8*500000)),4)
+e2 <- round((2000/(0.7*500000)),4)
+e3 <- round((2000/(0.2*500000)),4)
+
+cat('The average ad spend per person for the 1st experiment with 80% of the users assigned to the treatment group is: $', e1,'\n',
+    'The average ad spend per person for the 2nd experiment with 70% of the users assigned to the treatment group is: $', e2,'\n',
+    'The average ad spend per person for the 3rd experiment with 20% of the users assigned to the treatment group is: $', e3,'\n')
+```
+
+b. Maintaining your assumption that the campaign will break-even for each
+experimental design, what is the ‘reasonable signal’ for each of the three designs
+above? Report your answer to 4 decimals. (6 points)
+```{r}
+lift1 <- 2000/0.5
+
+incre1 <- lift1/(0.8*500000)
+incre2 <- lift1/(0.7*500000)
+incre3 <- lift1/(0.2*500000)
+
+cat('The ‘reasonable signal’ for the 1st experiment with 80% of the users assigned to the treatment group is: ', incre1,'\n',
+    'The ‘reasonable signal’ for the 2nd experiment with 70% of the users assigned to the treatment group is: ', incre2,'\n',
+    'The ‘reasonable signal’ for the 3rd experiment with 20% of the users assigned to the treatment group is: ', incre3,'\n')
+```
+
+c. For a 95% confidence interval, what is the statistical power now for each of the
+three possible experimental designs? Which is highest now? (9 points)
+```{r}
+power_e1 <- pwr.t2n.test(d=incre1/sd1, n1=0.2*500000, n2=0.8*500000)
+power_e2 <- pwr.t2n.test(d=incre2/sd1, n1=0.3*500000, n2=0.7*500000)
+power_e3 <- pwr.t2n.test(d=incre3/sd1, n1=0.8*500000, n2=0.2*500000)
+
+power_e1
+power_e2
+power_e3
+
+cat('The statistical power for the 1st experiment with 80% of the users assigned to the treatment group is: ', '7.36%','\n',
+    'The statistical power for the 2nd experiment with 70% of the users assigned to the treatment group is: ', '9.07%','\n',
+    'The statistical power for the 3rd experiment with 20% of the users assigned to the treatment group is: ', '43.78%','\n')
+```
+
+d. What changes your answer between 2(b) and 3(c)? Which is the best of the six
+options in terms of statistical power? (5 points)
+
+The statistical power decreases for the first two experimental designs but increases for the third experiment. It decreases by 7.35% for the first experiment, decreases by 8.76% for the second experiment but increases by 29.07% for the third experiment. The experiment with 20% of the users in the treatment group, given that a fixed ad budget of $2,000 is spent on ads is the most successful experiment with the highest statistical power at 43.78%.
+
+4. You have been thinking about the possibility your ads may wear out so that their
+effectiveness decreases as you increase the average ad spend. You revisit your
+previous assumption and instead assume the following for the 3 possible experimental
+designs:
+
+a. What is the `reasonable' signal now? Fill out the above table. Report your answer to
+4 decimals. (6 points)
+```{r}
+e1_new <- e1*2
+e2_new <- e2*1.9
+e3_new <- e3*1.2
+
+incre1_new <- round((e1_new/0.5),4)
+incre2_new <- round((e2_new/0.5),4)
+incre3_new <- round((e3_new/0.5),4)
+
+tab <- matrix(c('From 3(a)', '2x cost=0.02', 'From 3(a)', '1.9x cost=0.0217', 'From 3(a)', '1.2x cost=0.048'), ncol=2, byrow=TRUE)
+colnames(tab) <- c('Cost Per Person','Reasonable signal')
+rownames(tab) <- c('20% control','30% control','80% control')
+tab <- as.table(tab)
+tab
+
+cat('--------','\n')
+
+cat('The ‘reasonable signal’ for the 1st experiment with 80% of the users assigned to the treatment group is: ', incre1_new,'\n',
+    'The ‘reasonable signal’ for the 2nd experiment with 70% of the users assigned to the treatment group is: ', incre2_new,'\n',
+    'The ‘reasonable signal’ for the 3rd experiment with 20% of the users assigned to the treatment group is: ', incre3_new,'\n')
+
+```
+
+b. Under your revised assumption, what is the statistical power of each option? (9
+points) Which is best now? (1 point)
+```{r}
+power_e1_new <- pwr.t2n.test(d=incre1_new/sd1, n1=0.2*500000, n2=0.8*500000)
+power_e2_new <- pwr.t2n.test(d=incre2_new/sd1, n1=0.3*500000, n2=0.7*500000)
+power_e3_new <- pwr.t2n.test(d=incre3_new/sd1, n1=0.8*500000, n2=0.2*500000)
+
+power_e1_new
+power_e2_new
+power_e3_new
+
+cat('The statistical power for the 1st experiment with 80% of the users assigned to the treatment group is: ', power_e1_new$power,'\n',
+    'The statistical power for the 2nd experiment with 70% of the users assigned to the treatment group is: ', power_e2_new$power,'\n',
+    'The statistical power for the 3rd experiment with 20% of the users assigned to the treatment group is: ', power_e3_new$power,'\n')
+```
+The experiment with 20% of the users in the treatment group has the highest statistical power (58.08%) among the three experiments. 
+
+5. a. You budget $40,000 weekly for the paid search campaign. For your power
+calculation, you expect the search ads to generate a lift equivalent to 3X the ad cost.
+What is the expected ad lift for the average store (the `reasonable’ signal)? (2
+points)
+
+
+
+b. Across the 60 locations, the stores have the same average weekly sales of $200,000
+with standard deviation $30,000. Given this and using a 90% confidence interval
+as your standard, calculate the statistical power for this experiment if you run it
+for a single week. (6 points)
+
+
+
+c. At current spending levels, how many weeks would you need to run this
+experiment before the statistical power of the experiment surpasses 50%? (8
+points)
+
+
+6.a. Given the response rates, how many surveys do you expect to collect in each of
+the treatment and control groups? (2 points)
+
+
+
+
+
+b. DynamicLogic survey proposal is expensive and you can only pay them for this
+one ad campaign. What is the likelihood that the 95% confidence intervals on your
+ad effect estimates exclude 0 for each survey measure?
+i. Brand favorability (3 points)
+ii. Purchase intent (3 points)
+
+
+
+c. In a one-paragraph summary for a coworker, explain your decision on whether to
+use DynamicLogic’s services. Be sure to discuss the strengths and limitations of
+survey analysis and explain implications of your power calculation for the
+experiment. (6 points)
+
+
+
+
+d. Suppose that 0.5% of users who see the treatment ad fill out the survey, but 0.1%
+of users who see the control ad fill the survey. How would this affect your
+interpretation of the experimental results? (6 points)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
