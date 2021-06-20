@@ -152,7 +152,7 @@ rownames(tab) <- c('20% control','30% control','80% control')
 tab <- as.table(tab)
 tab
 
-cat('--------','\n')
+cat('----------------------------------------------------------------','\n')
 
 cat('The ‘reasonable signal’ for the 1st experiment with 80% of the users assigned to the treatment group is: ', incre1_new,'\n',
     'The ‘reasonable signal’ for the 2nd experiment with 70% of the users assigned to the treatment group is: ', incre2_new,'\n',
@@ -177,7 +177,7 @@ cat('The statistical power for the 1st experiment with 80% of the users assigned
 ```
 The experiment with 20% of the users in the treatment group has the highest statistical power (58.08%) among the three experiments. 
 
-5. a. You budget $40,000 weekly for the paid search campaign. For your power
+5.a. You budget $40,000 weekly for the paid search campaign. For your power
 calculation, you expect the search ads to generate a lift equivalent to 3X the ad cost.
 What is the expected ad lift for the average store (the `reasonable’ signal)? (2
 points)
